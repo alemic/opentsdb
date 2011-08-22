@@ -111,6 +111,9 @@ final class TsdbQuery implements Query {
   /** Minimum time interval (in seconds) wanted between each data point. */
   private int sample_interval;
 
+  /** Indicates if the time series should be normalized. */
+  private boolean normalize;
+
   /** Constructor. */
   public TsdbQuery(final TSDB tsdb) {
     this.tsdb = tsdb;
@@ -171,6 +174,10 @@ final class TsdbQuery implements Query {
     }
     this.downsampler = downsampler;
     this.sample_interval = interval;
+  }
+
+  public void normalize(boolean b) {
+    this.normalize = b;
   }
 
   /**
@@ -301,7 +308,8 @@ final class TsdbQuery implements Query {
                                             spans.values(),
                                             rate,
                                             aggregator,
-                                            sample_interval, downsampler);
+                                            sample_interval, downsampler,
+                                            normalize);
       return new SpanGroup[] { group };
     }
 
@@ -344,7 +352,8 @@ final class TsdbQuery implements Query {
       if (thegroup == null) {
         thegroup = new SpanGroup(tsdb, getScanStartTime(), getScanEndTime(),
                                  null, rate, aggregator,
-                                 sample_interval, downsampler);
+                                 sample_interval, downsampler,
+                                 normalize);
         // Copy the array because we're going to keep `group' and overwrite
         // its contents.  So we want the collection to have an immutable copy.
         final byte[] group_copy = new byte[group.length];
@@ -548,7 +557,8 @@ final class TsdbQuery implements Query {
     } catch (NoSuchUniqueId e) {
       buf.append("), tags=<").append(e.getMessage()).append('>');
     }
-    buf.append(", rate=").append(rate)
+    buf.append(", normalize=").append(normalize)
+       .append(", rate=").append(rate)
        .append(", aggregator=").append(aggregator)
        .append(", group_bys=(");
     if (group_bys != null) {

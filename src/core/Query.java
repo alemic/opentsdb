@@ -104,4 +104,23 @@ public interface Query {
    */
   DataPoints[] run() throws HBaseException;
 
+  /**
+   * Normalize the time series.
+   * <p>
+   * The normalization permits to relocate each point at a given interval from
+   * each others(60 seconds in our case). It does not interpolate the data but
+   * it based on area average of the datapoint in the current time interval
+   * computed. So there is no loss of information since it is not an
+   * approximation. It allows to compare timeseries between them and give a
+   * better view of the graph by avoiding false data peak due to some latency.
+   * Moreover, the average will be more accurate since the value are
+   * consistently distributed along the time.
+   * </p>
+   *
+   * @see http://www.vandenbogaerdt.nl/rrdtool/process.php
+   * @param b
+   *          when true the timeseries will be normalized.
+   */
+  void normalize(boolean b);
+
 }

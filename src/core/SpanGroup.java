@@ -93,6 +93,8 @@ final class SpanGroup implements DataPoints {
   /** Minimum time interval (in seconds) wanted between each data point. */
   private final int sample_interval;
 
+  private final boolean normalize;
+
   /**
    * Ctor.
    * @param tsdb The TSDB we belong to.
@@ -108,13 +110,15 @@ final class SpanGroup implements DataPoints {
    * @param interval Number of seconds wanted between each data point.
    * @param downsampler Aggregation function to use to group data points
    * within an interval.
+   * @param normalize Indicates if the series should be normalized.
    */
   SpanGroup(final TSDB tsdb,
             final long start_time, final long end_time,
             final Iterable<Span> spans,
             final boolean rate,
             final Aggregator aggregator,
-            final int interval, final Aggregator downsampler) {
+            final int interval, final Aggregator downsampler,
+            boolean normalize) {
     this.tsdb = tsdb;
     this.start_time = start_time;
     this.end_time = end_time;
@@ -127,6 +131,7 @@ final class SpanGroup implements DataPoints {
     this.aggregator = aggregator;
     this.downsampler = downsampler;
     this.sample_interval = interval;
+    this.normalize = normalize;
   }
 
   /**
@@ -449,10 +454,12 @@ final class SpanGroup implements DataPoints {
       // Initialize every Iterator, fetch their first values that fall
       // within our time range.
       for (int i = 0; i < size; i++) {
+        final Span current_span = spans.get(i);
+        current_span.normalize(normalize);
         final SeekableView it =
           (downsampler == null
-           ? spans.get(i).spanIterator()
-           : spans.get(i).downsampler(sample_interval, downsampler));
+           ? current_span.spanIterator()
+           : current_span.downsampler(sample_interval, downsampler));
         iterators[i] = it;
         it.seek(start_time);
         final DataPoint dp;
@@ -460,7 +467,7 @@ final class SpanGroup implements DataPoints {
           dp = it.next();
         } catch (NoSuchElementException e) {
           throw new AssertionError("Span #" + i + " is empty! span="
-                                   + spans.get(i));
+                                   + current_span);
         }
         //LOG.debug("Creating iterator #" + i);
         if (dp.timestamp() >= start_time) {

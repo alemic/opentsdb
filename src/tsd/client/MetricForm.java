@@ -47,6 +47,7 @@ final class MetricForm extends HorizontalPanel implements Focusable {
   private final EventsHandler events_handler;
   private MetricChangeHandler metric_change_handler;
 
+  private final CheckBox normalize = new CheckBox("Normalize");
   private final CheckBox downsample = new CheckBox("Downsample");
   private final ListBox downsampler = new ListBox();
   private final ValidatedTextBox interval = new ValidatedTextBox();
@@ -59,6 +60,7 @@ final class MetricForm extends HorizontalPanel implements Focusable {
   public MetricForm(final EventsHandler handler) {
     events_handler = handler;
     setupDownsampleWidgets();
+    normalize.addClickHandler(handler);
     downsample.addClickHandler(handler);
     downsampler.addChangeHandler(handler);
     interval.addBlurHandler(handler);
@@ -135,6 +137,7 @@ final class MetricForm extends HorizontalPanel implements Focusable {
         hbox.add(interval);
         vbox.add(hbox);
       }
+      vbox.add(normalize);
       add(vbox);
     }
   }
@@ -162,6 +165,9 @@ final class MetricForm extends HorizontalPanel implements Focusable {
     if (downsample.getValue()) {
       url.append(':').append(interval.getValue())
         .append('-').append(selectedValue(downsampler));
+    }
+    if (normalize.getValue()) {
+      url.append(":normalize");
     }
     if (rate.getValue()) {
       url.append(":rate");

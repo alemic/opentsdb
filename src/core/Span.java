@@ -40,6 +40,9 @@ final class Span implements DataPoints {
   /** All the rows in this span. */
   private ArrayList<RowSeq> rows = new ArrayList<RowSeq>();
 
+  /** indicate if the sequence should be normalized */
+  private boolean normalize;
+
   Span(final TSDB tsdb) {
     this.tsdb = tsdb;
   }
@@ -152,7 +155,7 @@ final class Span implements DataPoints {
   }
 
   public SeekableView iterator() {
-    return spanIterator();
+    return normalize ? normalizedSpanIterator() : spanIterator();
   }
 
   /**
@@ -203,6 +206,10 @@ final class Span implements DataPoints {
     return rows.get(idx).doubleValue(offset);
   }
 
+  public void normalize(boolean normalize) {
+    this.normalize = normalize;
+  }
+
   /** Returns a human readable string representation of the object. */
   public String toString() {
     final StringBuilder buf = new StringBuilder();
@@ -244,8 +251,8 @@ final class Span implements DataPoints {
   }
 
   /** Package private iterator method to access it as a Span.Iterator. */
-  Span.Iterator spanIterator() {
-    return new Span.Iterator();
+  SeekableView spanIterator() {
+    return normalize ? new Span.NormalizedIterator() : new Span.Iterator();
   }
 
   /** Iterator for {@link Span}s. */
@@ -292,6 +299,193 @@ final class Span implements DataPoints {
 
     public String toString() {
       return "Span.Iterator(row_index=" + row_index
+        + ", current_row=" + current_row + ", span=" + Span.this + ')';
+    }
+
+  }
+
+  Span.NormalizedIterator normalizedSpanIterator()
+  {
+    return new NormalizedIterator();
+  }
+
+
+  final class NormalizedIterator implements SeekableView, DataPoint {
+
+    private short row_index;
+    private DataPointsIterator current_row;
+
+    private static final long INTERVAL = 60; // normalize data each 60 seconds.
+                                             // this parameter could be a query
+                                             // parameter or in Const.java
+
+    /** timestamp aligned on INTERVAL */
+    private long aligned_timestamp;
+    /** the timestamp to return */
+    private long current_timestamp;
+    /** the value computed at current_timestamp */
+    private double current_value;
+
+    private long base_timestamp;
+    private double base_value;
+
+    private long next_timestamp;
+    private double next_value;
+
+    NormalizedIterator() {
+      current_row = rows.get(0).internalIterator();
+    }
+
+    @Override
+    public boolean hasNext() {
+      return (current_row.hasNext()             // more points in this row
+              || row_index < rows.size() - 1);  // or more rows
+    }
+
+    private DataPoint _next() {
+      if (current_row.hasNext()) {
+        return current_row.next();
+      } else if (row_index < rows.size() - 1) {
+        row_index++;
+        current_row = rows.get(row_index).internalIterator();
+        return current_row.next();
+      }
+      throw new NoSuchElementException("no more elements");
+    }
+
+    public DataPoint next() {
+
+      final long x0 = base_timestamp;
+      final double y0 = base_value;
+
+      long x1 = 0;
+      double y1 = 0;
+
+      double amount = 0;
+      double interval = 0;
+
+      if (x0 == aligned_timestamp) {
+        amount = y0;
+        interval = 1;
+      } else {
+
+        interval = Math.abs(aligned_timestamp - x0);
+        amount = (y0 * interval);
+
+        boolean has_next = true;
+        do {
+
+          has_next = false;
+
+          /*
+           * we are going to look ahead in order to check if some points match
+           * the current time interval. If yes their area will be added to the
+           * current.
+           */
+
+          x1 = next_timestamp;
+          y1 = next_value;
+
+          if (x1 > aligned_timestamp) {
+            x1 = aligned_timestamp;
+          } else if (x1 < aligned_timestamp && hasNext()) {
+            has_next = true;
+            final DataPoint dp = _next();
+            next_timestamp = dp.timestamp();
+            next_value = dp.toDouble();
+          }
+
+          // in most of the case x1 > x0
+          // but when x1 is aligned and when some
+          // datapoints are missing, we can have
+          // x1 < x0
+          final long distance = Math.abs(x1 - x0);
+          interval += distance;
+          amount += y1 * distance;
+
+        } while (has_next);
+      }
+
+      // values to 'return'
+      current_timestamp = aligned_timestamp;
+      current_value = amount / interval;
+
+      aligned_timestamp += INTERVAL;
+      base_timestamp = next_timestamp;
+      base_value = next_value;
+
+      // handle the case we missed a point,
+      // To detect it we just need to know if the next
+      // aligned point is before the next data point we
+      // got. If yes, we missed a point.
+
+      if (aligned_timestamp >= next_timestamp && hasNext()) {
+        final DataPoint dp = _next();
+        next_timestamp = dp.timestamp();
+        next_value = dp.toDouble();
+      }
+
+      return this;
+    }
+
+    @Override
+    public void remove() {
+      throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public long timestamp() {
+      return current_timestamp;
+    }
+
+    @Override
+    public boolean isInteger() {
+      return false;
+    }
+
+    @Override
+    public long longValue() {
+      throw new ClassCastException("this value is not a long in " + this);
+    }
+
+    @Override
+    public double doubleValue() {
+      return current_value;
+    }
+
+    @Override
+    public double toDouble() {
+      return current_value;
+    }
+
+    @Override
+    public void seek(final long timestamp) {
+      short row_index = seekRow(timestamp);
+      if (row_index != this.row_index) {
+        this.row_index = row_index;
+        current_row = rows.get(row_index).internalIterator();
+      }
+      current_row.seek(timestamp);
+
+      // We got synchronized so at this point we have
+      // to initialize the first data point
+      current_timestamp = aligned_timestamp = timestamp + INTERVAL - timestamp % INTERVAL;
+      if (hasNext()) {
+        final DataPoint dp = _next();
+        base_timestamp = dp.timestamp();
+        base_value = dp.toDouble();
+      }
+
+      if (hasNext()) {
+        final DataPoint dp = _next();
+        next_timestamp = dp.timestamp();
+        next_value = dp.toDouble();
+      }
+    }
+
+    @Override
+    public String toString() {
+      return "Span.NormalizedIterator(row_index=" + row_index
         + ", current_row=" + current_row + ", span=" + Span.this + ')';
     }
 

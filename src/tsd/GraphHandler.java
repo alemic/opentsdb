@@ -821,7 +821,7 @@ final class GraphHandler implements HttpRpc {
       // Where the parts in square brackets `[' .. `]' are optional.
       final String[] parts = Tags.splitString(m, ':');
       int i = parts.length;
-      if (i < 2 || i > 4) {
+      if (i < 2 || i > 5) {
         throw new BadRequestException("Invalid parameter m=" + m + " ("
           + (i < 2 ? "not enough" : "too many") + " :-separated parts)");
       }
@@ -833,12 +833,17 @@ final class GraphHandler implements HttpRpc {
       if (rate) {
         i--;  // Move to the next part.
       }
+      final boolean normalize = "normalize".equals(parts[i]);
+      if (normalize) {
+        i--;
+      }
       final Query tsdbquery = tsdb.newQuery();
       try {
         tsdbquery.setTimeSeries(metric, parsedtags, agg, rate);
       } catch (NoSuchUniqueName e) {
         throw new BadRequestException(e.getMessage());
       }
+      tsdbquery.normalize(normalize);
       // downsampling function & interval.
       if (i > 0) {
         final int dash = parts[1].indexOf('-', 1);  // 1st char can't be `-'.
