@@ -40,8 +40,11 @@ final class Span implements DataPoints {
   /** All the rows in this span. */
   private ArrayList<RowSeq> rows = new ArrayList<RowSeq>();
 
-  /** indicate if the sequence should be normalized */
+  /** indicates if the sequence should be normalized */
   private boolean normalize;
+
+  /** indicates the normalization interval */
+  private long normalize_interval;
 
   Span(final TSDB tsdb) {
     this.tsdb = tsdb;
@@ -206,8 +209,9 @@ final class Span implements DataPoints {
     return rows.get(idx).doubleValue(offset);
   }
 
-  public void normalize(boolean normalize) {
+  public void normalize(final boolean normalize, final long interval) {
     this.normalize = normalize;
+    this.normalize_interval = interval;
   }
 
   /** Returns a human readable string representation of the object. */
@@ -315,9 +319,7 @@ final class Span implements DataPoints {
     private short row_index;
     private DataPointsIterator current_row;
 
-    private static final long INTERVAL = 60; // normalize data each 60 seconds.
-                                             // this parameter could be a query
-                                             // parameter or in Const.java
+    private final long INTERVAL;
 
     /** timestamp aligned on INTERVAL */
     private long aligned_timestamp;
@@ -334,6 +336,7 @@ final class Span implements DataPoints {
 
     NormalizedIterator() {
       current_row = rows.get(0).internalIterator();
+      INTERVAL = normalize_interval;
     }
 
     @Override

@@ -120,7 +120,12 @@ public interface Query {
    * @see http://www.vandenbogaerdt.nl/rrdtool/process.php
    * @param b
    *          when true the timeseries will be normalized.
+   * @param interval
+   *          The interval (in seconds) between each point. When
+   *          {@code interval} equals 0 the default interval shall be
+   *          used (60 seconds).
+   * @throws IllegalArgumentException when {@code interval} is invalid (< 0)
    */
-  void normalize(boolean b);
+  void normalize(boolean b, long interval) throws IllegalArgumentException;
 
 }

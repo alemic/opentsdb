@@ -833,8 +833,10 @@ final class GraphHandler implements HttpRpc {
       if (rate) {
         i--;  // Move to the next part.
       }
-      final boolean normalize = "normalize".equals(parts[i]);
+      final boolean normalize = parts[i].startsWith("normalize");
+      long normalize_interval = -1;
       if (normalize) {
+        normalize_interval = parseDuration(parts[i].substring(parts[i].indexOf('-') + 1));
         i--;
       }
       final Query tsdbquery = tsdb.newQuery();
@@ -843,7 +845,9 @@ final class GraphHandler implements HttpRpc {
       } catch (NoSuchUniqueName e) {
         throw new BadRequestException(e.getMessage());
       }
-      tsdbquery.normalize(normalize);
+      if (normalize) {
+        tsdbquery.normalize(normalize, normalize_interval);
+      }
       // downsampling function & interval.
       if (i > 0) {
         final int dash = parts[1].indexOf('-', 1);  // 1st char can't be `-'.

@@ -214,8 +214,10 @@ final class CliQuery {
       if (rate) {
         i++;
       }
-      final boolean normalize = args[i].equals("normalize");
+      final boolean normalize = args[i].startsWith("normalize");
+      long normalize_interval = 0;
       if (normalize) {
+        normalize_interval = Long.parseLong(args[i].substring(args[i].indexOf('-') + 1));
         i++;
       }
       final boolean downsample = args[i].equals("downsample");
@@ -242,7 +244,7 @@ final class CliQuery {
       if (downsample) {
         query.downsample(interval, sampler);
       }
-      query.normalize(normalize);
+      query.normalize(normalize, normalize_interval);
       queries.add(query);
     }
   }

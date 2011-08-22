@@ -48,6 +48,7 @@ final class MetricForm extends HorizontalPanel implements Focusable {
   private MetricChangeHandler metric_change_handler;
 
   private final CheckBox normalize = new CheckBox("Normalize");
+  private final ValidatedTextBox normalize_interval = new ValidatedTextBox();
   private final CheckBox downsample = new CheckBox("Downsample");
   private final ListBox downsampler = new ListBox();
   private final ValidatedTextBox interval = new ValidatedTextBox();
@@ -60,11 +61,14 @@ final class MetricForm extends HorizontalPanel implements Focusable {
   public MetricForm(final EventsHandler handler) {
     events_handler = handler;
     setupDownsampleWidgets();
+    setupNormalizeWidgets();
     normalize.addClickHandler(handler);
     downsample.addClickHandler(handler);
     downsampler.addChangeHandler(handler);
     interval.addBlurHandler(handler);
     interval.addKeyPressHandler(handler);
+    normalize_interval.addBlurHandler(handler);
+    normalize_interval.addKeyPressHandler(handler);
     rate.addClickHandler(handler);
     x1y2.addClickHandler(handler);
     aggregators.addChangeHandler(handler);
@@ -137,7 +141,12 @@ final class MetricForm extends HorizontalPanel implements Focusable {
         hbox.add(interval);
         vbox.add(hbox);
       }
-      vbox.add(normalize);
+      {
+        final HorizontalPanel hbox = new HorizontalPanel();
+        hbox.add(normalize);
+        hbox.add(normalize_interval);
+        vbox.add(hbox);
+      }
       add(vbox);
     }
   }
@@ -167,7 +176,7 @@ final class MetricForm extends HorizontalPanel implements Focusable {
         .append('-').append(selectedValue(downsampler));
     }
     if (normalize.getValue()) {
-      url.append(":normalize");
+      url.append(":normalize-").append(normalize_interval.getValue());
     }
     if (rate.getValue()) {
       url.append(":rate");
@@ -334,6 +343,23 @@ final class MetricForm extends HorizontalPanel implements Focusable {
         interval.setEnabled(checked);
         if (checked) {
           downsampler.setFocus(true);
+        }
+      }
+    });
+  }
+
+  private void setupNormalizeWidgets() {
+    normalize_interval.setEnabled(false);
+    normalize_interval.setMaxLength(5);
+    normalize_interval.setVisibleLength(5);
+    normalize_interval.setValue("1m");
+    normalize_interval.setValidationRegexp("^[1-9][0-9]*[smhdwy]$");
+    normalize.addClickHandler(new ClickHandler() {
+      public void onClick(final ClickEvent event) {
+        final boolean checked = ((CheckBox) event.getSource()).getValue();
+        normalize_interval.setEnabled(checked);
+        if (checked) {
+          normalize_interval.setFocus(true);
         }
       }
     });

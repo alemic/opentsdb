@@ -95,6 +95,9 @@ final class SpanGroup implements DataPoints {
 
   private final boolean normalize;
 
+  /** normalization interval */
+  private final long normalize_interval;
+
   /**
    * Ctor.
    * @param tsdb The TSDB we belong to.
@@ -111,14 +114,16 @@ final class SpanGroup implements DataPoints {
    * @param downsampler Aggregation function to use to group data points
    * within an interval.
    * @param normalize Indicates if the series should be normalized.
+   * @param normalize_interval Number of second between each normalized points.
    */
+
   SpanGroup(final TSDB tsdb,
             final long start_time, final long end_time,
             final Iterable<Span> spans,
             final boolean rate,
             final Aggregator aggregator,
             final int interval, final Aggregator downsampler,
-            boolean normalize) {
+            final boolean normalize, final long normalize_interval) {
     this.tsdb = tsdb;
     this.start_time = start_time;
     this.end_time = end_time;
@@ -132,6 +137,7 @@ final class SpanGroup implements DataPoints {
     this.downsampler = downsampler;
     this.sample_interval = interval;
     this.normalize = normalize;
+    this.normalize_interval = normalize_interval;
   }
 
   /**
@@ -455,7 +461,7 @@ final class SpanGroup implements DataPoints {
       // within our time range.
       for (int i = 0; i < size; i++) {
         final Span current_span = spans.get(i);
-        current_span.normalize(normalize);
+        current_span.normalize(normalize, normalize_interval);
         final SeekableView it =
           (downsampler == null
            ? current_span.spanIterator()

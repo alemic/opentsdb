@@ -114,6 +114,9 @@ final class TsdbQuery implements Query {
   /** Indicates if the time series should be normalized. */
   private boolean normalize;
 
+  /** Normalization interval */
+  private long normalize_interval;
+
   /** Constructor. */
   public TsdbQuery(final TSDB tsdb) {
     this.tsdb = tsdb;
@@ -176,7 +179,14 @@ final class TsdbQuery implements Query {
     this.sample_interval = interval;
   }
 
-  public void normalize(boolean b) {
+  public void normalize(boolean b, long interval) throws IllegalArgumentException {
+    if (interval < 0)
+      throw new IllegalArgumentException("Invalid interval given for normalization: " + interval);
+
+    if (interval == 0)
+      this.normalize_interval = 60; // default interval to use
+    else
+      this.normalize_interval = interval;
     this.normalize = b;
   }
 
@@ -309,7 +319,7 @@ final class TsdbQuery implements Query {
                                             rate,
                                             aggregator,
                                             sample_interval, downsampler,
-                                            normalize);
+                                            normalize, normalize_interval);
       return new SpanGroup[] { group };
     }
 
@@ -353,7 +363,7 @@ final class TsdbQuery implements Query {
         thegroup = new SpanGroup(tsdb, getScanStartTime(), getScanEndTime(),
                                  null, rate, aggregator,
                                  sample_interval, downsampler,
-                                 normalize);
+                                 normalize, normalize_interval);
         // Copy the array because we're going to keep `group' and overwrite
         // its contents.  So we want the collection to have an immutable copy.
         final byte[] group_copy = new byte[group.length];
