@@ -148,6 +148,7 @@ final class DateTimeBox extends DateBox {
       button.setStyleName(seconds < 0 ? "datePickerPreviousButton"
                           : "datePickerNextButton");
       button.addClickHandler(new ClickHandler() {
+        @SuppressWarnings("deprecation")
         public void onClick(final ClickEvent event) {
           Date d = box.getValue();
           if (d == null) {
@@ -172,8 +173,8 @@ final class DateTimeBox extends DateBox {
     private PushButton newSetHoursButton(final int hours) {
       final PushButton button = new PushButton(Integer.toString(hours));
       button.addClickHandler(new ClickHandler() {
+        @SuppressWarnings(/* GWT requires us to use Date */{"deprecation"})
         public void onClick(final ClickEvent event) {
-          @SuppressWarnings(/* GWT requires us to use Date */{"deprecation"})
           Date d = box.getValue();
           if (d == null) {
             d = new Date();
@@ -196,8 +197,8 @@ final class DateTimeBox extends DateBox {
                                            final String label) {
       final PushButton button = new PushButton(label);
       button.addClickHandler(new ClickHandler() {
+        @SuppressWarnings(/* GWT requires us to use Date */{"deprecation"})
         public void onClick(final ClickEvent event) {
-          @SuppressWarnings(/* GWT requires us to use Date */{"deprecation"})
           Date d = box.getValue();
           if (d == null) {
             d = new Date();
